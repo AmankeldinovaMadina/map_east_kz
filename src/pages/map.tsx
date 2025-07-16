@@ -40,6 +40,7 @@ type ParsedExcelData = {
   contractInfo: string;
   coordinates: [number, number][][]; // Parsed from WKT
   group: string;
+  aboutCompany?: string;
 };
 
 type Company = {
@@ -198,6 +199,7 @@ function processExcelData(raw: any[] | { features: any[] }): ParsedExcelData[] {
       contractInfo: (props["Информация по контракту/лицензии (номер, дата и срок действия)"] || '').trim(),
       coordinates: coords,
       group: (props["Район"] || '').trim(),
+      aboutCompany: (props["О Компании"] || '').trim(),
     };
   });
 }
@@ -587,7 +589,7 @@ export default function MapPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   О Компании
                 </p>
-                <h4>{selectedExcelItem.company}</h4>
+                <h4 className="whitespace-pre-line">{selectedExcelItem.aboutCompany || selectedExcelItem.company}</h4>
               </div>
             </div>
           )}

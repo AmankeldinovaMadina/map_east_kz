@@ -308,8 +308,8 @@ const MapView = ({
                   <Marker
                     position={center}
                     icon={L.divIcon({
-                      html: `<div className=\"region-label\">${region.name}</div>`,
-                      className: "region-label-wrapper text-gray-200 text-center font-medium leading-3",
+                      html: `<div class=\"region-label\">${region.name}</div>`,
+                      className: "region-label-wrapper text-black text-center font-medium leading-3",
                       iconSize: [100, 50],
                       iconAnchor: [50, 15],
                     })}
