@@ -106,47 +106,79 @@ function countUniqueOPIandTPI(region: Region): { ОПИ: number; ТПИ: number 
   return { ОПИ: opiSet.size, ТПИ: tpiSet.size };
 }
 
-// Function to parse WKT coordinates
+// Function to parse WKT, data‑wkt attributes or raw GeoJSON strings
 function parseWKTCoordinates(wkt: string): [number, number][][] {
   if (!wkt || typeof wkt !== 'string') return [];
 
-  try {
-    // Remove MULTIPOLYGON or POLYGON wrapper and extract coordinate pairs
-    const coordinateString = wkt
-      .replace(/^(MULTI)?POLYGON\s*\(\(/i, '')
-      .replace(/\)\)$/, '')
-      .trim();
+  let raw = wkt.trim();
 
-    // Split by polygon boundaries for multipolygon
-    const polygonStrings = coordinateString.split('), (');
+  // 1) Strip out data-wkt="…"
+  const dataMatch = raw.match(/data-wkt\s*=\s*["'](.+)["']/i);
+  if (dataMatch) {
+    raw = dataMatch[1];
+  }
 
-    const polygons: [number, number][][] = [];
-
-    for (const polygonString of polygonStrings) {
-      const coordPairs = polygonString
-        .replace(/[()]/g, '')
-        .split(',')
-        .map(pair => pair.trim())
-        .filter(pair => pair.length > 0);
-
-      const coordinates: [number, number][] = [];
-      for (const pair of coordPairs) {
-        const [lon, lat] = pair.split(/\s+/).map(Number);
-        if (!isNaN(lon) && !isNaN(lat)) {
-          coordinates.push([lat, lon]); // Leaflet expects [lat, lon]
+  // 2) If it’s a JSON FeatureCollection, parse and extract
+  if (raw[0] === '{') {
+    try {
+      const fc = JSON.parse(raw) as { features: any[] };
+      const out: [number, number][][] = [];
+      for (const feat of fc.features || []) {
+        const geom = feat.geometry;
+        if (!geom) continue;
+        // unify Polygon and MultiPolygon
+        const polys =
+          geom.type === 'Polygon'
+            ? [geom.coordinates]
+            : geom.type === 'MultiPolygon'
+            ? geom.coordinates
+            : [];
+        for (const poly of polys) {
+          // each poly is an array of rings; take the outer ring
+          const ring = poly[0] as [number, number][];
+          out.push(ring.map(([lon, lat]) => [lat, lon]));
         }
       }
-
-      if (coordinates.length > 0) {
-        polygons.push(coordinates);
-      }
+      return out;
+    } catch {
+      // fall through to WKT parsing
     }
-
-    return polygons;
-  } catch (error) {
-    console.error('Error parsing WKT coordinates:', error);
-    return [];
   }
+
+  // 3) Now handle WKT POLYGON vs MULTIPOLYGON
+  // strip the leading “POLYGON ((” or “MULTIPOLYGON ((”
+  let inner: string;
+  if (/^MULTIPOLYGON/i.test(raw)) {
+    inner = raw.replace(/^MULTIPOLYGON\s*\(\(/i, '').replace(/\)\)\s*$/,'');
+    // split on “)), ((” between polygons
+    return inner
+      .split(/\)\)\s*,\s*\(\(/)
+      .map(group =>
+        group
+          .replace(/[()]/g, '')
+          .split(/\s*,\s*/)
+          .map(pair => {
+            const [lon, lat] = pair.trim().split(/\s+/).map(Number);
+            return [lat, lon] as [number, number];
+          })
+          .filter(coord => !isNaN(coord[0]) && !isNaN(coord[1]))
+      );
+  } else if (/^POLYGON/i.test(raw)) {
+    inner = raw.replace(/^POLYGON\s*\(\(/i, '').replace(/\)\)\s*$/,'');
+    return [
+      inner
+        .replace(/[()]/g, '')
+        .split(/\s*,\s*/)
+        .map(pair => {
+          const [lon, lat] = pair.trim().split(/\s+/).map(Number);
+          return [lat, lon] as [number, number];
+        })
+        .filter(coord => !isNaN(coord[0]) && !isNaN(coord[1])),
+    ];
+  }
+
+  // fallback: no valid geometry
+  return [];
 }
 
 // Function to process Excel data from GeoJSON
@@ -270,13 +302,24 @@ export default function MapPage() {
     // 2. Build a fresh group
     const excelGroup = new L.FeatureGroup();
     filteredExcelData.forEach(item => {
-      item.coordinates.forEach((ring, idx) => {
+      item.coordinates.forEach((ring) => {
         const polygon = L.polygon(ring);
         polygon.on('click', () => {
           setSelectedExcelItem(item);
           setIsInfoShow(false); // Hide API info if open
         });
+        // Add a location icon marker at the centroid of the polygon
+        const bounds = L.polygon(ring).getBounds();
+        const center = bounds.getCenter();
+        const locationIcon = L.divIcon({
+          html: '<svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" fill="#2563EB"/></svg>', // blue color
+          className: '',
+          iconSize: [24, 24],
+          iconAnchor: [12, 24],
+        });
+        const marker = L.marker(center, { icon: locationIcon, interactive: false });
         excelGroup.addLayer(polygon);
+        excelGroup.addLayer(marker);
       });
     });
 
