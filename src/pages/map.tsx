@@ -1,4 +1,5 @@
 import excelData from "@/assets/excel-data.json";
+import regionsData from "@/assets/regions.json";
 import MapModal from "@/components/MapModal";
 import MapView from "@/components/MapView";
 import DefaultLayout from "@/layouts/default";
@@ -224,24 +225,7 @@ export default function MapPage() {
     company: Company;
     data: any;
   }[]>([]);
-  const [isInfoShow, setIsInfoShow] = useState<boolean>(false);
-  const [data, setData] = useState<{
-    id?: string;
-    tparcel?: string; // тип участка (например, "горный")
-    parcelarea?: string; // площадь, возможно пригодится преобразовать в number
-    nlicense?: string; // номер лицензии
-    "admterr_id/oblast_admterr_id/name"?: string; // название области (рус)
-    "admterr_id/oblast_admterr_id/name_kk"?: string; // название области (каз)
-    mineraldeveloper?: string; // недропользователь
-    "admterr_id/oblast_admterr_id"?: string; // ID области
-    contractend_date?: string; // дата окончания контракта (ISO строка)
-    tminerals?: string; // тип полезного ископаемого
-    deposit?: string; // месторождение
-    parceldepth?: string; // глубина участка
-    ncontract?: string; // номер контракта
-    contractbegin_date?: string; // дата начала контракта
-    parcel_date?: string; // дата регистрации участка
-  }>();
+  // Remove API info state
   const [cRegion, setRegion] = useState<Region>({
     name: "",
     id: "",
@@ -307,7 +291,6 @@ export default function MapPage() {
         const polygon = L.polygon(ring);
         polygon.on('click', () => {
           setSelectedExcelItem(item);
-          setIsInfoShow(false); // Hide API info if open
         });
         // Add a location icon marker at the centroid of the polygon
         const bounds = L.polygon(ring).getBounds();
@@ -397,10 +380,7 @@ export default function MapPage() {
     setShowExcelData(true); // Show Excel data by default so polygons render
   }, []);
 
-  useEffect(() => {
-    setData({});
-    setIsInfoShow(false);
-  }, [selectedCompanies]);
+
 
   const handleCompanySelect = (companyData: Company[]) => {
     setSelectedCompanies(companyData);
@@ -434,56 +414,7 @@ export default function MapPage() {
     fn2();
   }, []);
 
-  const handleFocus = async (location: string, company: Company) => {
-    const res = await fetch(
-      "https://map.choices.kz/api/info.php?location=" + location,
-    );
-    const data = await res.json();
-    if (await data.error) {
-      setIsInfoShow(false);
-      setIsError('Информация не найдена');
-      return;
-    }
-    setIsError('');
-    setData(await data);
-    setIsInfoShow(true);
-    const rawPolygon = data.coordinates?.[0]?.[0];
-    if (!rawPolygon) return;
-    const polygon = rawPolygon.map(([lon, lat]: [number, number]) => [
-      lat,
-      lon,
-    ]); // 🔄 меняем порядок
-
-    // Add to all fetched polygons array
-    const newPolygon = {
-      id: `${company.company_title}-${location}`,
-      coordinates: polygon,
-      company: company,
-      data: data
-    };
-
-    setAllFetchedPolygons(prev => {
-      // Check if this polygon already exists
-      const existsIndex = prev.findIndex(p => p.id === newPolygon.id);
-      if (existsIndex !== -1) {
-        // Update existing polygon
-        const updated = [...prev];
-        updated[existsIndex] = newPolygon;
-        return updated;
-      } else {
-        // Add new polygon
-        return [...prev, newPolygon];
-      }
-    });
-
-    setTimeout(() => {
-      setPolygonCoords(polygon);
-    }, 1300);
-    if (mapRef.current) {
-      const center = L.polygon(polygon).getBounds().getCenter();
-      mapRef.current.flyTo(center, 15, { animate: true, duration: 1 });
-    }
-  };
+  // Remove handleFocus and all API info logic
 
   const loadAllCoordinates = async (companies: Company[]) => {
     setIsError('');
@@ -556,7 +487,6 @@ export default function MapPage() {
 
   const handleExcelItemSelect = (excelItem: ParsedExcelData, polygonIndex: number) => {
     setSelectedExcelItem(excelItem);
-    setIsInfoShow(false); // Hide API data info
 
     // Focus on the selected polygon
     if (excelItem.coordinates[polygonIndex] && mapRef.current) {
@@ -592,89 +522,7 @@ export default function MapPage() {
             <h2 className="text-red-800 text-sm">Ошибка</h2>
             <p className="text-red-700 text-sm">{isError}</p>
           </div>}
-          {isInfoShow && (
-            <div className="grid grid-cols-3 gap-3 bg-[#f4f4f5] dark:bg-[#18181b] rounded-2xl p-4 h-[300px] overflow-y-auto my-2 border-1 dark:border-gray-800">
-              <div className="w-full col-span-3 flex justify-end">
-                <button
-                  onClick={() => {
-                    setIsInfoShow(false);
-                  }}
-                >
-                  <X size={20} className="text-gray-600 dark:text-gray-400" />
-                </button>
-              </div>
-              <div className="">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Область
-                </p>
-                <h4>{data?.["admterr_id/oblast_admterr_id/name"]}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Месторождение
-                </p>
-                <h4>{data?.deposit}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Номер контракта/лицензии
-                </p>
-                <h4>{data?.nlicense}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Площадь отвода (км2)
-                </p>
-                <h4>{data?.parcelarea}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Недропользователь
-                </p>
-                <h4>{data?.mineraldeveloper}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Номер контракта/лицензии
-                </p>
-                <h4>{data?.ncontract}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Дата выдачи контракта/лицензии
-                </p>
-                <h4>{data?.contractbegin_date}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Срок действия контракта/лицензии
-                </p>
-                <h4>{data?.contractend_date}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Отвод</p>
-                <h4>{data?.tparcel}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Полезные ископаемые
-                </p>
-                <h4>{data?.tminerals}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Глубина отвода (м)
-                </p>
-                <h4>{data?.parceldepth}</h4>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Дата выдачи отвода
-                </p>
-                <h4>{data?.parcel_date}</h4>
-              </div>
-            </div>
-          )}
+
           {selectedExcelItem && (
             <div className="grid grid-cols-2 gap-3 bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 h-[300px] overflow-y-auto my-2 border-1 border-purple-200 dark:border-purple-700">
               <div className="w-full col-span-2 flex justify-between items-center">
@@ -861,6 +709,45 @@ export default function MapPage() {
               </button>
             )}
           </div>
+
+          {/* Region info table from regions.json, shown when a region is selected in the dropdown */}
+          {showExcelData && excelRegionToShow && excelRegionToShow !== "__all__" && (() => {
+            function normalize(str: string) {
+              return str
+                .toLowerCase()
+                .replace(/[^a-zа-яё0-9]/gi, '')
+                .replace(/ё/g, 'е');
+            }
+            const selectedRegion = regionsData.find((r: any) => normalize(r.region) === normalize(excelRegionToShow));
+            if (!selectedRegion) return (
+              <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-xs text-yellow-700 dark:text-yellow-300">
+                Нет информации о регионе в базе regions.json
+              </div>
+            );
+            return (
+              <Table className="mb-2">
+                <TableHeader>
+                  <TableColumn>Регион</TableColumn>
+                  <TableColumn>Недропользователей</TableColumn>
+                  <TableColumn>Контрактов</TableColumn>
+                  <TableColumn>Лицензий</TableColumn>
+                  <TableColumn>Разведка</TableColumn>
+                  <TableColumn>Добыча</TableColumn>
+                </TableHeader>
+                <TableBody>
+                  <TableRow key={selectedRegion.region}>
+                    <TableCell>{selectedRegion.region}</TableCell>
+                    <TableCell>{selectedRegion.users}</TableCell>
+                    <TableCell>{selectedRegion.contracts}</TableCell>
+                    <TableCell>{selectedRegion.licenses}</TableCell>
+                    <TableCell>{selectedRegion.reconnaissance}</TableCell>
+                    <TableCell>{selectedRegion.mining}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            );
+          })()}
+
           {cRegion.url != "" && (
             <img
               src={cRegion.url}
@@ -869,20 +756,6 @@ export default function MapPage() {
               height={100}
             />
           )}
-          <Table>
-            <TableHeader>
-              <TableColumn>Недропользователей</TableColumn>
-              <TableColumn>ТПИ</TableColumn>
-              <TableColumn>ОПИ</TableColumn>
-            </TableHeader>
-            <TableBody>
-              <TableRow key="1">
-                <TableCell>{countUniqueCompanyTitles(cRegion)}</TableCell>
-                <TableCell>{countUniqueOPIandTPI(cRegion).ТПИ}</TableCell>
-                <TableCell>{countUniqueOPIandTPI(cRegion).ОПИ}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
 
           {/* Outer Tabs for TPI/OPI */}
           <Tabs
@@ -970,19 +843,16 @@ export default function MapPage() {
           {/* Display companies based on selected inner tab */}
           {selectedTypeKey !== "default" ? (
             <div className="flex flex-col gap-3">
-              {selectedCompanies?.map((e, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    handleFocus(e.location, e);
-                    setCurrentCompany(e);
-                  }}
-                  color="primary"
-                  className="w-full text-sm text-gray-700 dark:text-gray-300 text-left"
-                >
-                  {index + 1}. {e.company_title}
-                </button>
-              ))}
+          {selectedCompanies?.map((e, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentCompany(e)}
+              color="primary"
+              className="w-full text-sm text-gray-700 dark:text-gray-300 text-left"
+            >
+              {index + 1}. {e.company_title}
+            </button>
+          ))}
             </div>
           ) : (
             selectedCategoryKey !== "default" && (

@@ -1,0 +1,98 @@
+[
+  {
+    "region": "Глубоковский район",
+    "users": 18,
+    "contracts": 24,
+    "licenses": 4,
+    "reconnaissance": 8,
+    "mining": 21
+  },
+  {
+    "region": "Зайсанский район",
+    "users": 5,
+    "contracts": 9,
+    "licenses": 2,
+    "reconnaissance": 3,
+    "mining": 11
+  },
+  {
+    "region": "Район Алтай",
+    "users": 8,
+    "contracts": 14,
+    "licenses": 3,
+    "reconnaissance": 6,
+    "mining": 13
+  },
+  {
+    "region": "Катон-Карагайский район",
+    "users": 4,
+    "contracts": 6,
+    "licenses": 0,
+    "reconnaissance": 3,
+    "mining": 3
+  },
+  {
+    "region": "Курчумский район",
+    "users": 14,
+    "contracts": 14,
+    "licenses": 1,
+    "reconnaissance": 5,
+    "mining": 10
+  },
+  {
+    "region": "Маркакольский район",
+    "users": 14,
+    "contracts": 14,
+    "licenses": 1,
+    "reconnaissance": 5,
+    "mining": 10
+  },
+  {
+    "region": "Район Самар",
+    "users": 4,
+    "contracts": 5,
+    "licenses": 1,
+    "reconnaissance": 1,
+    "mining": 6
+  },
+  {
+    "region": "Риддерерская г.а.",
+    "users": 10,
+    "contracts": 17,
+    "licenses": 2,
+    "reconnaissance": 5,
+    "mining": 12
+  },
+  {
+    "region": "Усть‑Каменогорская г.а.",
+    "users": 14,
+    "contracts": 14,
+    "licenses": 1,
+    "reconnaissance": 6,
+    "mining": 9
+  },
+  {
+    "region": "Уланский район",
+    "users": 14,
+    "contracts": 14,
+    "licenses": 1,
+    "reconnaissance": 6,
+    "mining": 9
+  },
+  {
+    "region": "Тарбагатайский район",
+    "users": 14,
+    "contracts": 14,
+    "licenses": 1,
+    "reconnaissance": 6,
+    "mining": 9
+  },
+  {
+    "region": "Шемонаихинский район",
+    "users": 14,
+    "contracts": 14,
+    "licenses": 1,
+    "reconnaissance": 6,
+    "mining": 9
+  }
+]
