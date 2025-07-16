@@ -132,8 +132,8 @@ function parseWKTCoordinates(wkt: string): [number, number][][] {
           geom.type === 'Polygon'
             ? [geom.coordinates]
             : geom.type === 'MultiPolygon'
-            ? geom.coordinates
-            : [];
+              ? geom.coordinates
+              : [];
         for (const poly of polys) {
           // each poly is an array of rings; take the outer ring
           const ring = poly[0] as [number, number][];
@@ -150,7 +150,7 @@ function parseWKTCoordinates(wkt: string): [number, number][][] {
   // strip the leading “POLYGON ((” or “MULTIPOLYGON ((”
   let inner: string;
   if (/^MULTIPOLYGON/i.test(raw)) {
-    inner = raw.replace(/^MULTIPOLYGON\s*\(\(/i, '').replace(/\)\)\s*$/,'');
+    inner = raw.replace(/^MULTIPOLYGON\s*\(\(/i, '').replace(/\)\)\s*$/, '');
     // split on “)), ((” between polygons
     return inner
       .split(/\)\)\s*,\s*\(\(/)
@@ -165,7 +165,7 @@ function parseWKTCoordinates(wkt: string): [number, number][][] {
           .filter(coord => !isNaN(coord[0]) && !isNaN(coord[1]))
       );
   } else if (/^POLYGON/i.test(raw)) {
-    inner = raw.replace(/^POLYGON\s*\(\(/i, '').replace(/\)\)\s*$/,'');
+    inner = raw.replace(/^POLYGON\s*\(\(/i, '').replace(/\)\)\s*$/, '');
     return [
       inner
         .replace(/[()]/g, '')
@@ -532,8 +532,7 @@ export default function MapPage() {
 
           {selectedExcelItem && (
             <div className="grid grid-cols-2 gap-3 bg-purple-50 dark:bg-purple-900/20 rounded-2xl p-4 h-[300px] overflow-y-auto my-2 border-1 border-purple-200 dark:border-purple-700">
-              <div className="w-full col-span-2 flex justify-between items-center">
-                <h3 className="text-purple-700 dark:text-purple-300 font-bold">📊 Excel Data</h3>
+              <div className="w-full col-span-2 flex justify-end items-center">
                 <button
                   onClick={() => {
                     setSelectedExcelItem(null);
@@ -610,18 +609,6 @@ export default function MapPage() {
               className="w-full mb-2 text-white text-sm flex items-center justify-center gap-1.5 bg-purple-500 hover:bg-purple-600 p-2 px-3 rounded-xl"
             >
               📊 Показать данные региона ({excelRegionDataCount})
-            </button>
-          )}
-          {/* Button to hide Excel data */}
-          {showExcelData && (
-            <button
-              onClick={() => {
-                setShowExcelData(false);
-                setExcelRegionToShow('');
-              }}
-              className="w-full mb-2 text-white text-sm flex items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 p-2 px-3 rounded-xl"
-            >
-              Скрыть данные Excel
             </button>
           )}
 
@@ -713,7 +700,7 @@ export default function MapPage() {
                 : 'bg-purple-500 hover:bg-purple-600'
                 }`}
             >
-              {showExcelData ? 'Скрыть' : 'Показать'} данные Excel ({excelMiningData.length})
+              {showExcelData ? 'Скрыть данные' : 'Показать данные'} ({excelMiningData.length})
             </button>
             {showExcelData && (
               <button
@@ -773,125 +760,7 @@ export default function MapPage() {
             );
           })()}
 
-          {cRegion.url != "" && (
-            <img
-              src={cRegion.url}
-              className="rounded-xl mb-2"
-              width={"100%"}
-              height={100}
-            />
-          )}
-
-          {/* Outer Tabs for TPI/OPI */}
-          <Tabs
-            aria-label="Category Options"
-            selectedKey={selectedCategoryKey}
-            onSelectionChange={(key) => {
-              setSelectedCategoryKey(key as "TPI" | "OPI" | "default");
-              setSelectedTypeKey("default"); // Reset inner tab when outer tab changes
-              let companiesToFilter: Company[] = [];
-              if (key === "TPI") {
-                companiesToFilter = filterCompaniesByCategory(cRegion, "ТПИ");
-              } else if (key === "OPI") {
-                companiesToFilter = filterCompaniesByCategory(cRegion, "ОПИ");
-              }
-              setFilteredCompaniesByCategory(companiesToFilter);
-              handleCompanySelect([]); // Clear selected companies when category changes
-
-              // Automatically load coordinates for the filtered companies
-              if (companiesToFilter.length > 0) {
-                loadAllCoordinates(companiesToFilter);
-              }
-            }}
-            className="mt-4 mb-2"
-          >
-            <Tab key="TPI" title={`ТПИ: ${countUniqueOPIandTPI(cRegion).ТПИ}`} />
-            <Tab key="OPI" title={`ОПИ: ${countUniqueOPIandTPI(cRegion).ОПИ}`} />
-          </Tabs>
-
-          {/* Inner Tabs for Разведка/Добыча */}
-          {selectedCategoryKey !== "default" && (
-            <>
-              <Tabs
-                aria-label="Type Options"
-                selectedKey={selectedTypeKey}
-                onSelectionChange={(key) => {
-                  setSelectedTypeKey(key as "razvedka" | "dobycha" | "default");
-                  let selectedCompanies: Company[] = [];
-                  if (key === "razvedka") {
-                    selectedCompanies = filterCompaniesByType(filteredCompaniesByCategory, "разведка");
-                    handleCompanySelect(selectedCompanies);
-                  } else if (key === "dobycha") {
-                    selectedCompanies = filterCompaniesByType(filteredCompaniesByCategory, "добыча");
-                    handleCompanySelect(selectedCompanies);
-                  }
-
-                  // Automatically load coordinates for the selected type
-                  if (selectedCompanies.length > 0) {
-                    loadAllCoordinates(selectedCompanies);
-                  }
-                }}
-                className="mt-2 mb-2"
-              >
-                <Tab
-                  key="razvedka"
-                  title={`Разведки: ${countCompanyTypes(filteredCompaniesByCategory).разведка}`}
-                />
-                <Tab
-                  key="dobycha"
-                  title={`Добычи: ${countCompanyTypes(filteredCompaniesByCategory).добыча}`}
-                />
-              </Tabs>
-
-              {/* Button to load all coordinates */}
-              {filteredCompaniesByCategory.length > 0 && (
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => loadAllCoordinates(filteredCompaniesByCategory)}
-                    className="flex-1 text-white text-sm bg-blue-500 hover:bg-blue-600 p-2 px-3 rounded-xl"
-                  >
-                    Показать все ({filteredCompaniesByCategory.length})
-                  </button>
-                  {allFetchedPolygons.length > 0 && (
-                    <button
-                      onClick={() => setAllFetchedPolygons([])}
-                      className="text-white text-sm bg-red-500 hover:bg-red-600 p-2 px-3 rounded-xl"
-                    >
-                      Очистить
-                    </button>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Display companies based on selected inner tab */}
-          {selectedTypeKey !== "default" ? (
-            <div className="flex flex-col gap-3">
-          {selectedCompanies?.map((e, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentCompany(e)}
-              color="primary"
-              className="w-full text-sm text-gray-700 dark:text-gray-300 text-left"
-            >
-              {index + 1}. {e.company_title}
-            </button>
-          ))}
-            </div>
-          ) : (
-            selectedCategoryKey !== "default" && (
-              <p className="w-full text-xs text-gray-500 text-center mt-3">
-                Нажмите разведки/добычи чтобы увидеть недропользователей
-              </p>
-            )
-          )}
-
-          {selectedCategoryKey === "default" && (
-            <p className="w-full text-xs text-gray-500 text-center mt-3">
-              Выберите ТПИ или ОПИ для фильтрации недропользователей
-            </p>
-          )}
+          {/* ...existing code... */}
         </div>
       </div>
       <MapModal
