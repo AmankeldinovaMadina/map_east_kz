@@ -258,15 +258,22 @@ export default function MapPage() {
       url?: string;
     }[]
   >([]);
+  // BIN search state
+  const [binSearch, setBinSearch] = useState<string>("");
 
-  // Helper: get unique regions for dropdown and filter Excel data for the selected region or show all
-  const excelRegions = getExcelRegions(excelMiningData);
+  // Filter by BIN first
+  const searchedData = excelMiningData.filter(item =>
+    binSearch.trim() === "" ? true : item.bin.includes(binSearch.trim())
+  );
+  // Build regions from only those rows
+  const excelRegions = getExcelRegions(searchedData);
+  // Then filter by region
   const filteredExcelData = (!showExcelData)
     ? []
     : (excelRegionToShow === '__all__')
-      ? excelMiningData
+      ? searchedData
       : (excelRegionToShow)
-        ? excelMiningData.filter(item => item.group === excelRegionToShow)
+        ? searchedData.filter(item => item.group === excelRegionToShow)
         : [];
 
   // Draw Excel polygons on map when filteredExcelData or showExcelData changes
@@ -577,6 +584,12 @@ export default function MapPage() {
                 </p>
                 <h4>{selectedExcelItem.contractInfo}</h4>
               </div>
+              <div className="col-span-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  О Компании
+                </p>
+                <h4>{selectedExcelItem.company}</h4>
+              </div>
             </div>
           )}
         </div>
@@ -612,6 +625,18 @@ export default function MapPage() {
             </button>
           )}
 
+          {/* BIN search */}
+          {showExcelData && (
+            <div className="mb-2">
+              <input
+                type="text"
+                placeholder="Поиск по БИН…"
+                value={binSearch}
+                onChange={e => setBinSearch(e.target.value)}
+                className="w-full p-2 border rounded-xl text-sm"
+              />
+            </div>
+          )}
           {/* Excel region filter dropdown */}
           {showExcelData && excelRegions.length > 0 && (
             <div className="mb-4">
