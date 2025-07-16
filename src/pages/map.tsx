@@ -287,17 +287,20 @@ export default function MapPage() {
   // We must use a function declaration for getFilteredExcelData and filteredExcelData
   // so that showExcelData is always declared before this effect
   useEffect(() => {
-    if (!showExcelData || !filteredExcelData.length || !mapRef.current) {
-      return;
-    }
+    if (!mapRef.current) return;
 
-    // 1. Remove old Excel polygons (but not basemap tiles)
+    // Always remove old Excel polygons and markers (but not basemap tiles)
     mapRef.current.eachLayer(layer => {
-      // Only remove layers that are polygons (skip basemap, controls, etc.)
-      if ((layer as any)._latlngs) {
+      // Only remove layers that are polygons or markers (skip basemap, controls, etc.)
+      if ((layer as any)._latlngs || (layer as any)._icon) {
         mapRef.current!.removeLayer(layer);
       }
     });
+
+    if (!showExcelData || !filteredExcelData.length) {
+      // If hiding Excel data, just return after clearing
+      return;
+    }
 
     // 2. Build a fresh group
     const excelGroup = new L.FeatureGroup();
