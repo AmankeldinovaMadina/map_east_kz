@@ -9,6 +9,8 @@ import {
   Polygon,
   Popup,
   TileLayer,
+  LayersControl,
+  FeatureGroup,
 } from "react-leaflet";
 
 
@@ -231,20 +233,17 @@ const MapView = ({
     } else {
       //alert(`Не найдено региона по запросу: ${query}`);
     }
+    // End of useVoiceRecognition callback
   });
-
-
-
-
-
+  // Main return of MapView component
   return (
     <MapContainer
-      center={[49.95, 82.62]} // Центр ВКО
+      center={[49.95, 82.62]}
       zoom={1}
       minZoom={7}
       maxZoom={15}
       style={{
-        height: "100%", width: "100%", borderRadius: "20px", // 👈 скругление углов
+        height: "100%", width: "100%", borderRadius: "20px",
         overflow: "hidden"
       }}
       whenReady={
@@ -254,165 +253,136 @@ const MapView = ({
       }
       maxBounds={L.geoJSON(regionFeature).getBounds()}
       maxBoundsViscosity={1.0}
-
     >
-      <TileLayer
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        attribution="&copy; OpenStreetMap contributors"
-      />
-
-      {/* Отображаем только Восточно-Казахстанскую область */}
-      {/* <GeoJSON
-        data={regionFeature}
-        style={{
-          color: "blue",
-          weight: 2,
-          fillColor: "rgba(0, 0, 255, 0.1)",
-        }}
-      /> */}
-
-      {regionPolygons.map((region) => {
-        const center = L.polygon(region.coordinates).getBounds().getCenter();
-        return (
-          <>
-            <Polygon
-              positions={region.coordinates}
-              pathOptions={{ color: "transparent" }}
-              eventHandlers={{
-                click: () => {
-                  //console.log(region.company);
-                  getCompany?.(region.company);
-                  setRegion?.(region)
-                },
-                mouseover: (e) => {
-                  const layer = e.target;
-                  layer.setStyle({
-                    //fillColor: "#026fee",
-                    fillOpacity: 0.4,
-                    color: "#026fee",
-                    weight: 2
-                  });
-                },
-                mouseout: (e) => {
-                  const layer = e.target;
-                  layer.setStyle({
-                    fillColor: "transparent", // исходный цвет
-                    color: "transparent",
-                  });
-                },
-              }}
-            />
-            <Marker
-              position={center}
-              icon={L.divIcon({
-                html: `<div className="region-label">${region.name}</div>`,
-                className: "region-label-wrapper text-gray-200 text-center font-medium leading-3", // важно: базовый класс
-                iconSize: [100, 50],
-                iconAnchor: [50, 15],
-              })}
-              interactive={false}
-            // чтобы не перехватывал клики
-            />
-            {/* <Marker
-              position={L.polygon(region.coordinates).getBounds().getCenter()}
-              icon={customIcon}
-            > */}
-            {/* <Popup
-                ref={(ref) => {
-                  if (ref) popupRefs.current[region.id] = ref;
-                }}
-              >
-                <div>
-                  <div>
-                    <strong>{region.name}</strong>
-                  </div>
-                  <div>
-                    Недропользователи: {countUniqueCompanyTitles(region)}
-                  </div>
-                  <div>Добычи: {countCompanyTypes(region).добыча}</div>
-                  <button
-                    className="bg-gray-800 text-white p-2"
-                    onClick={() => {
-                      getCompany?.(filterCompaniesByType(region, "добыча"));
-                      mapRef.current?.closePopup();
-                    }}
-                  >
-                    Показать
-                  </button>
-                  <div>Разведки: {countCompanyTypes(region).разведка}</div>
-                  <button
-                    className="bg-gray-800 text-white p-2"
-                    onClick={() => {
-                      getCompany?.(filterCompaniesByType(region, "разведка"));
-                      mapRef.current?.closePopup();
-                    }}
-                  >
-                    Показать
-                  </button>
-                  <div>ТПИ: {countUniqueCategories(region)}</div>
-                </div>
-              </Popup> */}
-            {/* </Marker> */}
-          </>
-        );
-      })}
-      {/* Тестовый маркер */}
-
-      {/* Пример полигона */}
-      {polygonCoords && (
-        <>
-          <Marker
-            position={L.polygon(polygonCoords).getBounds().getCenter()}
-            icon={customIcon}
-          >
-            <Popup>
-              <h2>{currentCompany?.company_title}</h2>
-            </Popup>
-          </Marker>
-          <Polygon
-            positions={polygonCoords}
-            pathOptions={{ color: "#44e15f", fillOpacity: 0.3 }}
+      <LayersControl position="topright">
+        <LayersControl.BaseLayer checked name="Road map">
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="&copy; OpenStreetMap contributors"
           />
-        </>
-      )}
-
-      {/* Отображение всех загруженных полигонов */}
-      {allFetchedPolygons.map((fetchedPolygon) => {
-        const center = L.polygon(fetchedPolygon.coordinates).getBounds().getCenter();
-        return (
-          <React.Fragment key={fetchedPolygon.id}>
-            <Marker
-              position={center}
-              icon={customIcon}
-            >
-              <Popup>
-                <div>
-                  <h3 className="font-bold">{fetchedPolygon.company.company_title}</h3>
-                  <p><strong>Тип:</strong> {fetchedPolygon.company.type}</p>
-                  <p><strong>Категория:</strong> {fetchedPolygon.company.category}</p>
-                  <p><strong>Местоположение:</strong> {fetchedPolygon.company.location}</p>
-                  {fetchedPolygon.data.deposit && (
-                    <p><strong>Месторождение:</strong> {fetchedPolygon.data.deposit}</p>
-                  )}
-                  {fetchedPolygon.data.nlicense && (
-                    <p><strong>Лицензия:</strong> {fetchedPolygon.data.nlicense}</p>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-            <Polygon
-              positions={fetchedPolygon.coordinates}
-              pathOptions={{
-                color: fetchedPolygon.company.type === "добыча" ? "#ff6b6b" : "#4ecdc4",
-                fillOpacity: 0.2,
-                weight: 2
-              }}
-            />
-          </React.Fragment>
-        );
-      })}
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Topographic">
+          <TileLayer
+            url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+            attribution="&copy; OpenTopoMap & OpenStreetMap contributors"
+          />
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Physical">
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}"
+            attribution="&copy; Esri"
+          />
+        </LayersControl.BaseLayer>
+        {/* Overlays and polygons */}
+        <LayersControl.Overlay checked name="Regions">
+          <FeatureGroup>
+            {regionPolygons.map((region) => {
+              const center = L.polygon(region.coordinates).getBounds().getCenter();
+              return (
+                <React.Fragment key={region.id}>
+                  <Polygon
+                    positions={region.coordinates}
+                    pathOptions={{ color: "transparent" }}
+                    eventHandlers={{
+                      click: () => {
+                        getCompany?.(region.company);
+                        setRegion?.(region)
+                      },
+                      mouseover: (e) => {
+                        const layer = e.target;
+                        layer.setStyle({
+                          fillOpacity: 0.4,
+                          color: "#026fee",
+                          weight: 2
+                        });
+                      },
+                      mouseout: (e) => {
+                        const layer = e.target;
+                        layer.setStyle({
+                          fillColor: "transparent",
+                          color: "transparent",
+                        });
+                      },
+                    }}
+                  />
+                  <Marker
+                    position={center}
+                    icon={L.divIcon({
+                      html: `<div className=\"region-label\">${region.name}</div>`,
+                      className: "region-label-wrapper text-gray-200 text-center font-medium leading-3",
+                      iconSize: [100, 50],
+                      iconAnchor: [50, 15],
+                    })}
+                    interactive={false}
+                  />
+                </React.Fragment>
+              );
+            })}
+          </FeatureGroup>
+        </LayersControl.Overlay>
+        {/* Example polygon and markers */}
+        {polygonCoords && (
+          <LayersControl.Overlay checked name="Selected Polygon">
+            <FeatureGroup>
+              <Marker
+                position={L.polygon(polygonCoords).getBounds().getCenter()}
+                icon={customIcon}
+              >
+                <Popup>
+                  <h2>{currentCompany?.company_title}</h2>
+                </Popup>
+              </Marker>
+              <Polygon
+                positions={polygonCoords}
+                pathOptions={{ color: "#44e15f", fillOpacity: 0.3 }}
+              />
+            </FeatureGroup>
+          </LayersControl.Overlay>
+        )}
+        {/* All fetched polygons */}
+        {allFetchedPolygons.length > 0 && (
+          <LayersControl.Overlay checked name="Fetched Polygons">
+            <FeatureGroup>
+              {allFetchedPolygons.map((fetchedPolygon) => {
+                const center = L.polygon(fetchedPolygon.coordinates).getBounds().getCenter();
+                return (
+                  <React.Fragment key={fetchedPolygon.id}>
+                    <Marker
+                      position={center}
+                      icon={customIcon}
+                    >
+                      <Popup>
+                        <div>
+                          <h3 className="font-bold">{fetchedPolygon.company.company_title}</h3>
+                          <p><strong>Тип:</strong> {fetchedPolygon.company.type}</p>
+                          <p><strong>Категория:</strong> {fetchedPolygon.company.category}</p>
+                          <p><strong>Местоположение:</strong> {fetchedPolygon.company.location}</p>
+                          {fetchedPolygon.data.deposit && (
+                            <p><strong>Месторождение:</strong> {fetchedPolygon.data.deposit}</p>
+                          )}
+                          {fetchedPolygon.data.nlicense && (
+                            <p><strong>Лицензия:</strong> {fetchedPolygon.data.nlicense}</p>
+                          )}
+                        </div>
+                      </Popup>
+                    </Marker>
+                    <Polygon
+                      positions={fetchedPolygon.coordinates}
+                      pathOptions={{
+                        color: fetchedPolygon.company.type === "добыча" ? "#ff6b6b" : "#4ecdc4",
+                        fillOpacity: 0.2,
+                        weight: 2
+                      }}
+                    />
+                  </React.Fragment>
+                );
+              })}
+            </FeatureGroup>
+          </LayersControl.Overlay>
+        )}
+      </LayersControl>
     </MapContainer>
   );
-};
+}
 
 export default MapView;
