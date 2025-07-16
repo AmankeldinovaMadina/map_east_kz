@@ -213,6 +213,10 @@ function getExcelRegions(data: ParsedExcelData[]): string[] {
 export default function MapPage() {
   // All state must be declared before using in filteredExcelData
   const mapRef = useRef<LeafletMap | null>(null);
+  // Ref to store Excel polygons group
+  const excelGroupRef = useRef<L.FeatureGroup | null>(null);
+  // Ref to store region borders group
+  const regionBordersRef = useRef<L.FeatureGroup | null>(null);
   const [polygonCoords, setPolygonCoords] = useState<[number, number][] | null>(null);
   const [allFetchedPolygons, setAllFetchedPolygons] = useState<{
     id: string;
@@ -282,27 +286,21 @@ export default function MapPage() {
         : [];
 
   // Draw Excel polygons on map when filteredExcelData or showExcelData changes
-  // Draw Excel polygons on map when filteredExcelData or showExcelData changes
-  // This must come after all state declarations
-  // We must use a function declaration for getFilteredExcelData and filteredExcelData
-  // so that showExcelData is always declared before this effect
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Always remove old Excel polygons and markers (but not basemap tiles)
-    mapRef.current.eachLayer(layer => {
-      // Only remove layers that are polygons or markers (skip basemap, controls, etc.)
-      if ((layer as any)._latlngs || (layer as any)._icon) {
-        mapRef.current!.removeLayer(layer);
-      }
-    });
+    // Remove previous Excel group
+    if (excelGroupRef.current) {
+      mapRef.current.removeLayer(excelGroupRef.current);
+      excelGroupRef.current = null;
+    }
 
     if (!showExcelData || !filteredExcelData.length) {
       // If hiding Excel data, just return after clearing
       return;
     }
 
-    // 2. Build a fresh group
+    // Build a fresh group for Excel polygons/markers
     const excelGroup = new L.FeatureGroup();
     filteredExcelData.forEach(item => {
       item.coordinates.forEach((ring) => {
@@ -326,10 +324,72 @@ export default function MapPage() {
       });
     });
 
-    // 3. Add to map & zoom
+    // Add to map & zoom
     excelGroup.addTo(mapRef.current);
+    excelGroupRef.current = excelGroup;
     mapRef.current.fitBounds(excelGroup.getBounds(), { padding: [20, 20] });
   }, [showExcelData, filteredExcelData]);
+
+  // Draw region borders (API polygons) and keep them persistent
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Remove previous region borders group
+    if (regionBordersRef.current) {
+      mapRef.current.removeLayer(regionBordersRef.current);
+      regionBordersRef.current = null;
+    }
+
+    if (!regionPolygons.length) return;
+
+    const bordersGroup = new L.FeatureGroup();
+    regionPolygons.forEach(region => {
+      if (region.coordinates && region.coordinates.length > 2) {
+        // Create a transparent fill polygon for hover detection
+        const area = L.polygon(region.coordinates, {
+          color: '#2563eb', // blue border for area
+          weight: 0,
+          fill: true,
+          fillOpacity: 0,
+          className: 'region-area-hover',
+          interactive: true,
+        });
+        // Create the visible border polygon
+        const border = L.polygon(region.coordinates, {
+          color: '#888',
+          weight: 2,
+          fill: false,
+          dashArray: '6 4',
+          className: 'region-border',
+          interactive: false,
+        });
+        // On hover over the area, make the border fully blue and thick
+        area.on('mouseover', function () {
+          border.setStyle({
+            color: '#2563eb',
+            weight: 3,
+            dashArray: '',
+            opacity: 1,
+          });
+          if (border.bringToFront) border.bringToFront();
+        });
+        area.on('mouseout', function () {
+          border.setStyle({
+            color: '#888',
+            weight: 2,
+            dashArray: '6 4',
+            opacity: 1,
+          });
+        });
+        bordersGroup.addLayer(border);
+        bordersGroup.addLayer(area);
+      }
+    });
+    bordersGroup.addTo(mapRef.current);
+    regionBordersRef.current = bordersGroup;
+    // Optionally fit bounds to all regions on first load
+    // mapRef.current.fitBounds(bordersGroup.getBounds(), { padding: [20, 20] });
+  }, [regionPolygons]);
   // Process Excel data on component mount
   useEffect(() => {
     const processed = processExcelData(excelData);
