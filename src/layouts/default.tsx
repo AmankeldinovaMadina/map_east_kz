@@ -1,5 +1,3 @@
-import { Link } from "@heroui/link";
-
 import { Navbar } from "@/components/navbar";
 
 export default function DefaultLayout({
@@ -10,20 +8,7 @@ export default function DefaultLayout({
   return (
     <div className="relative flex flex-col h-screen">
       <Navbar />
-      <main className="container mx-auto max-w-7xl px-6 flex-grow pt-16">
-        {children}
-      </main>
-      <footer className="w-full flex items-center justify-center py-3">
-        <Link
-          isExternal
-          className="flex items-center gap-1 text-current"
-          href="https://heroui.com"
-          title="heroui.com homepage"
-        >
-          <span className="text-default-600">Powered by</span>
-          <p className="text-primary">HeroUI</p>
-        </Link>
-      </footer>
+      <main className="container mx-auto max-w-7xl flex-grow px-2 pb-5" style={{ height: "calc(100vh - 200px)" }}>{children}</main>
     </div>
   );
 }
