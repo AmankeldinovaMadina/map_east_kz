@@ -332,50 +332,8 @@ export default function MapPage() {
       regionBordersRef.current = null;
     }
 
-    if (!regionPolygons.length) return;
-
-    const bordersGroup = new L.FeatureGroup();
-    regionPolygons.forEach(region => {
-      if (!region.coordinates?.length) return;
-
-      // transparent fill for hover & click
-      const area = L.polygon(region.coordinates, {
-        color: '#2563eb',
-        weight: 0,
-        fillOpacity: 0,
-        interactive: true,
-        className: 'region-area-hover',
-      });
-      // dashed border
-      const border = L.polygon(region.coordinates, {
-        color: '#888',
-        weight: 2,
-        dashArray: '6 4',
-        fill: false,
-        interactive: false,
-        className: 'region-border',
-      });
-
-      area.on('mouseover', () => {
-        border.setStyle({ color: '#2563eb', weight: 3, dashArray: '', opacity: 1 });
-        if (border.bringToFront) border.bringToFront();
-      });
-      area.on('mouseout', () => {
-        border.setStyle({ color: '#888', weight: 2, dashArray: '6 4', opacity: 1 });
-      });
-      area.on('click', () => {
-        setShowExcelData(true);
-        setExcelRegionToShow(''); // clear dropdown if needed
-        handleRegionSelect(region);
-      });
-
-      bordersGroup.addLayer(border);
-      bordersGroup.addLayer(area);
-    });
-    bordersGroup.addTo(mapRef.current);
-    regionBordersRef.current = bordersGroup;
-    // Optionally fit bounds to all regions on first load
-    // mapRef.current.fitBounds(bordersGroup.getBounds(), { padding: [20, 20] });
+    // Do not draw API polygons at all (show only Excel polygons)
+    return;
   }, [regionPolygons]);
   // Process Excel data on component mount
   useEffect(() => {
@@ -463,32 +421,21 @@ export default function MapPage() {
       return combined;
     });
 
-    // Fit map to show all polygons
-    if (newPolygons.length > 0 && mapRef.current) {
-      const group = new L.FeatureGroup();
-      newPolygons.forEach(polygon => {
-        group.addLayer(L.polygon(polygon.coordinates));
-      });
-      mapRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
-    }
+    // Do not draw or fit map to company polygons (show only Excel polygons)
   };
 
   const handleRegionSelect = (region: Region) => {
-    console.log('[DEBUG] handleRegionSelect called with:', region);
+    // Only update info table and Excel region selection, do NOT load or draw API polygons
     setRegion(region);
-    // Do NOT clear excelRegionToShow here; set it to the region name if present
     if (region.name) {
       const regionExcelData = excelMiningData.filter(item => item.group === region.name);
-      setExcelRegionToShow(region.name); // This enables info table for map tap
+      setExcelRegionToShow(region.name);
       setExcelRegionDataCount(regionExcelData.length);
-      console.log('[DEBUG] region.name:', region.name, 'regionExcelData.length:', regionExcelData.length);
     } else {
       setExcelRegionToShow('');
       setExcelRegionDataCount(0);
     }
-    if (region.company && region.company.length > 0) {
-      loadAllCoordinates(region.company);
-    }
+    // Do NOT call loadAllCoordinates or draw any API/company polygons
   };
 
   const handleExcelItemSelect = (excelItem: ParsedExcelData, polygonIndex: number) => {
