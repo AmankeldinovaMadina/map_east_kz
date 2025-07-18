@@ -336,46 +336,41 @@ export default function MapPage() {
 
     const bordersGroup = new L.FeatureGroup();
     regionPolygons.forEach(region => {
-      if (region.coordinates && region.coordinates.length > 2) {
-        // Create a transparent fill polygon for hover detection
-        const area = L.polygon(region.coordinates, {
-          color: '#2563eb', // blue border for area
-          weight: 0,
-          fill: true,
-          fillOpacity: 0,
-          className: 'region-area-hover',
-          interactive: true,
-        });
-        // Create the visible border polygon
-        const border = L.polygon(region.coordinates, {
-          color: '#888',
-          weight: 2,
-          fill: false,
-          dashArray: '6 4',
-          className: 'region-border',
-          interactive: false,
-        });
-        // On hover over the area, make the border fully blue and thick
-        area.on('mouseover', function () {
-          border.setStyle({
-            color: '#2563eb',
-            weight: 3,
-            dashArray: '',
-            opacity: 1,
-          });
-          if (border.bringToFront) border.bringToFront();
-        });
-        area.on('mouseout', function () {
-          border.setStyle({
-            color: '#888',
-            weight: 2,
-            dashArray: '6 4',
-            opacity: 1,
-          });
-        });
-        bordersGroup.addLayer(border);
-        bordersGroup.addLayer(area);
-      }
+      if (!region.coordinates?.length) return;
+
+      // transparent fill for hover & click
+      const area = L.polygon(region.coordinates, {
+        color: '#2563eb',
+        weight: 0,
+        fillOpacity: 0,
+        interactive: true,
+        className: 'region-area-hover',
+      });
+      // dashed border
+      const border = L.polygon(region.coordinates, {
+        color: '#888',
+        weight: 2,
+        dashArray: '6 4',
+        fill: false,
+        interactive: false,
+        className: 'region-border',
+      });
+
+      area.on('mouseover', () => {
+        border.setStyle({ color: '#2563eb', weight: 3, dashArray: '', opacity: 1 });
+        if (border.bringToFront) border.bringToFront();
+      });
+      area.on('mouseout', () => {
+        border.setStyle({ color: '#888', weight: 2, dashArray: '6 4', opacity: 1 });
+      });
+      area.on('click', () => {
+        setShowExcelData(true);
+        setExcelRegionToShow(''); // clear dropdown if needed
+        handleRegionSelect(region);
+      });
+
+      bordersGroup.addLayer(border);
+      bordersGroup.addLayer(area);
     });
     bordersGroup.addTo(mapRef.current);
     regionBordersRef.current = bordersGroup;
@@ -479,16 +474,18 @@ export default function MapPage() {
   };
 
   const handleRegionSelect = (region: Region) => {
+    console.log('[DEBUG] handleRegionSelect called with:', region);
     setRegion(region);
+    // Do NOT clear excelRegionToShow here; set it to the region name if present
     if (region.name) {
       const regionExcelData = excelMiningData.filter(item => item.group === region.name);
-      setExcelRegionToShow(region.name);
+      setExcelRegionToShow(region.name); // This enables info table for map tap
       setExcelRegionDataCount(regionExcelData.length);
+      console.log('[DEBUG] region.name:', region.name, 'regionExcelData.length:', regionExcelData.length);
     } else {
       setExcelRegionToShow('');
       setExcelRegionDataCount(0);
     }
-    // Automatically load coordinates for all companies in the region
     if (region.company && region.company.length > 0) {
       loadAllCoordinates(region.company);
     }
@@ -690,24 +687,7 @@ export default function MapPage() {
               </p>
             </div>
           )}
-          {cRegion.name && cRegion.company.length > 0 && (
-            <div className="flex gap-2 mb-3">
-              <button
-                onClick={() => loadAllCoordinates(cRegion.company)}
-                className="flex-1 text-white text-sm bg-green-500 hover:bg-green-600 p-2 px-3 rounded-xl"
-              >
-                Показать все координаты региона ({cRegion.company.length})
-              </button>
-              {allFetchedPolygons.length > 0 && (
-                <button
-                  onClick={() => setAllFetchedPolygons([])}
-                  className="text-white text-sm bg-red-500 hover:bg-red-600 p-2 px-3 rounded-xl"
-                >
-                  Очистить
-                </button>
-              )}
-            </div>
-          )}
+          {/* Removed green and red region coordinate buttons as requested */}
 
           {/* Excel Data Control */}
           <div className="flex gap-2 mb-3">
@@ -740,15 +720,45 @@ export default function MapPage() {
             )}
           </div>
 
-          {/* Region info table from regions.json, shown when a region is selected in the dropdown */}
-          {showExcelData && excelRegionToShow && excelRegionToShow !== "__all__" && (() => {
+          {/* Region info table from regions.json, shown when a region is selected in the dropdown or tapped on the map */}
+          {showExcelData && (() => {
+            // Prefer dropdown if set and not __all__, else use tapped region
+            const regionNameForInfo = excelRegionToShow && excelRegionToShow !== "__all__" ? excelRegionToShow : cRegion.name;
+            console.log('[DEBUG] regionNameForInfo:', regionNameForInfo, 'excelRegionToShow:', excelRegionToShow, 'cRegion:', cRegion);
+            if (!regionNameForInfo) return null;
             function normalize(str: string) {
               return str
                 .toLowerCase()
                 .replace(/[^a-zа-яё0-9]/gi, '')
                 .replace(/ё/g, 'е');
             }
-            const selectedRegion = regionsData.find((r: any) => normalize(r.region) === normalize(excelRegionToShow));
+            function similarityScore(a: string, b: string): number {
+              a = normalize(a);
+              b = normalize(b);
+              if (a === b) return 1;
+              if (a.includes(b) || b.includes(a)) return 0.95;
+              let matches = 0;
+              const minLen = Math.min(a.length, b.length);
+              for (let i = 0; i < minLen; i++) {
+                if (a[i] === b[i]) matches++;
+              }
+              return matches / Math.max(a.length, b.length);
+            }
+            let selectedRegion = regionsData.find((r: any) => normalize(r.region) === normalize(regionNameForInfo));
+            if (!selectedRegion) {
+              // Fuzzy match fallback
+              let bestScore = 0.0;
+              let bestRegion: any = undefined;
+              for (const r of regionsData) {
+                const score = similarityScore(r.region, regionNameForInfo);
+                if (score > bestScore) {
+                  bestScore = score;
+                  bestRegion = r;
+                }
+              }
+              if (bestScore >= 0.6 && bestRegion) selectedRegion = bestRegion;
+            }
+            console.log('[DEBUG] selectedRegion:', selectedRegion);
             if (!selectedRegion) return (
               <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-xs text-yellow-700 dark:text-yellow-300">
                 Нет информации о регионе в базе regions.json
@@ -848,25 +858,7 @@ export default function MapPage() {
                 />
               </Tabs>
 
-              {/* Button to load all coordinates */}
-              {filteredCompaniesByCategory.length > 0 && (
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => loadAllCoordinates(filteredCompaniesByCategory)}
-                    className="flex-1 text-white text-sm bg-blue-500 hover:bg-blue-600 p-2 px-3 rounded-xl"
-                  >
-                    Показать все ({filteredCompaniesByCategory.length})
-                  </button>
-                  {allFetchedPolygons.length > 0 && (
-                    <button
-                      onClick={() => setAllFetchedPolygons([])}
-                      className="text-white text-sm bg-red-500 hover:bg-red-600 p-2 px-3 rounded-xl"
-                    >
-                      Очистить
-                    </button>
-                  )}
-                </div>
-              )}
+              {/* Removed green and red region coordinate buttons as requested */}
             </>
           )}
 
